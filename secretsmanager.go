@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"text/template"
 	"time"
 
@@ -78,9 +79,20 @@ func (s SecretsManagerService) retrieveSecrets(ctx context.Context, client *secr
 			desc = *d
 		}
 
+		var version string
+
+		for key, value := range rawEntry.SecretVersionsToStages {
+			if value[0] == "AWSCURRENT" {
+				version = key
+				break
+			}
+		}
+
 		ss = append(ss, Secret{
+			ARN:         *rawEntry.ARN,
 			Key:         *rawEntry.Name,
 			Value:       *rawSecret.SecretString,
+			Version:     version,
 			Description: desc,
 		})
 
@@ -127,6 +139,29 @@ resource "aws_secretsmanager_secret_version" "secret" {
 
 	if err := tmpl.Execute(out, params); err != nil {
 		return fmt.Errorf(`failed to execute template: %s`, err)
+	}
+
+	return nil
+}
+
+func (s SecretsManagerService) GenerateImports(ctx context.Context, filter Filter, out io.Writer) error {
+	secrets, err := s.RetrieveSecrets(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve secrets: %s", err)
+	}
+
+	for _, secret := range secrets {
+		fmt.Fprintf(
+			out, "terraform import 'aws_secretsmanager_secret.secret[\"%s\"]' %s\n",
+			strings.TrimPrefix(secret.Key, filter.Prefix),
+			secret.ARN,
+		)
+		fmt.Fprintf(
+			out, "terraform import 'aws_secretsmanager_secret_version.secret[\"%s\"]' '%s|%s'\n",
+			strings.TrimPrefix(secret.Key, filter.Prefix),
+			secret.ARN,
+			secret.Version,
+		)
 	}
 
 	return nil

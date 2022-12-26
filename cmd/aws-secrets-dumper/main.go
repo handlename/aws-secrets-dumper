@@ -58,6 +58,12 @@ func main() {
 							return actionGenerateTF(cCtx)
 						},
 					},
+					{
+						Name: "imports",
+						Action: func(cCtx *cli.Context) error {
+							return actionGenerateImports(cCtx)
+						},
+					},
 				},
 			},
 		},
@@ -119,6 +125,23 @@ func actionGenerateTF(cCtx *cli.Context) error {
 
 	if err := svc.GenerateTF(cCtx.Context, filter, os.Stdout); err != nil {
 		return fmt.Errorf("failed to generate terraform resource definition(s): %s", err)
+	}
+
+	return nil
+}
+
+func actionGenerateImports(cCtx *cli.Context) error {
+	svc, err := initService(cCtx.String("target"))
+	if err != nil {
+		return fmt.Errorf("failed to init service for %s", cCtx.String("target"))
+	}
+
+	filter := asd.Filter{
+		Prefix: cCtx.String("prefix"),
+	}
+
+	if err := svc.GenerateImports(cCtx.Context, filter, os.Stdout); err != nil {
+		return fmt.Errorf("failed to generate terraform import command(s): %s", err)
 	}
 
 	return nil

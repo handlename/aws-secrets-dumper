@@ -10,11 +10,14 @@ type SecretService interface {
 	Target() string
 	RetrieveSecrets(ctx context.Context, filter Filter) ([]Secret, error)
 	GenerateTF(ctx context.Context, filter Filter, out io.Writer) error
+	GenerateImports(ctx context.Context, filter Filter, out io.Writer) error
 }
 
 type Secret struct {
+	ARN         string
 	Key         string
 	Value       string
+	Version     string
 	Description string
 }
 

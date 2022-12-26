@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"text/template"
 	"time"
 
@@ -84,6 +85,7 @@ func (s SSMService) retrieveSecrets(ctx context.Context, client *ssm.Client, fil
 		}
 
 		ss = append(ss, Secret{
+			ARN:         *p.ARN,
 			Key:         *p.Name,
 			Value:       *p.Value,
 			Description: desc,
@@ -128,6 +130,24 @@ resource "aws_ssm_parameter" "parameter" {
 
 	if err := tmpl.Execute(out, params); err != nil {
 		return fmt.Errorf(`failed to execute template: %s`, err)
+	}
+
+	return nil
+}
+
+func (s SSMService) GenerateImports(ctx context.Context, filter Filter, out io.Writer) error {
+	secrets, err := s.RetrieveSecrets(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve secrets: %s", err)
+	}
+
+	for _, secret := range secrets {
+		fmt.Fprintf(
+			out, "terraform import 'aws_ssm_parameter.parameter[\"%s\"]' %s%s\n",
+			strings.TrimPrefix(secret.Key, filter.Prefix),
+			filter.Prefix,
+			secret.Key,
+		)
 	}
 
 	return nil
