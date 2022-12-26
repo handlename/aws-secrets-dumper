@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -57,26 +56,28 @@ func main() {
 	}
 }
 
-func actionDump(cCtx *cli.Context) error {
-	var svc asd.SecretService
-	ctx := context.Background()
-
-	switch cCtx.String("target") {
+func initService(target string) (asd.SecretService, error) {
+	switch target {
 	case "ssm":
-		svc = asd.SSMService{}
+		return asd.SSMService{}, nil
 	case "secretsmanager":
-		svc = asd.SecretsManagerService{}
+		return asd.SecretsManagerService{}, nil
 	default:
-		fmt.Fprintf(os.Stderr, "unknown target '%s'", cCtx.String("target"))
-		os.Exit(1)
+		return nil, fmt.Errorf("unknown target '%s'", target)
+	}
+}
+
+func actionDump(cCtx *cli.Context) error {
+	svc, err := initService(cCtx.String("target"))
+	if err != nil {
+		return fmt.Errorf("failed to init service for %s", cCtx.String("target"))
 	}
 
-	secrets, err := svc.RetrieveSecrets(ctx, asd.Filter{
+	secrets, err := svc.RetrieveSecrets(cCtx.Context, asd.Filter{
 		Prefix: cCtx.String("prefix"),
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to retrieve secrets via %s: %s", svc.Name(), err)
-		os.Exit(1)
+		return fmt.Errorf("failed to retrieve secrets via %s: %s", svc.Name(), err)
 	}
 
 	dumper := asd.Dumper{
