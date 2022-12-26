@@ -26,26 +26,38 @@ func init() {
 
 func main() {
 	app := &cli.App{
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "target",
+				Usage: "'ssm' or 'secretsmanager",
+			},
+			&cli.StringFlag{
+				Name:  "prefix",
+				Usage: "secret name prefix",
+			},
+			&cli.BoolFlag{
+				Name:  "remove-prefix",
+				Usage: "remove prefix from key in dump result",
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:  "dump",
 				Usage: "dump yaml formatted secrets to stdout",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:  "target",
-						Usage: "'ssm' or 'secretsmanager",
-					},
-					&cli.StringFlag{
-						Name:  "prefix",
-						Usage: "secret name prefix",
-					},
-					&cli.BoolFlag{
-						Name:  "remove-prefix",
-						Usage: "remove prefix from key in dump result",
-					},
-				},
 				Action: func(cCtx *cli.Context) error {
 					return actionDump(cCtx)
+				},
+			},
+			{
+				Name:  "generate",
+				Usage: "generate something",
+				Subcommands: []*cli.Command{
+					{
+						Name: "tf",
+						Action: func(cCtx *cli.Context) error {
+							return actionGenerateTF(cCtx)
+						},
+					},
 				},
 			},
 		},
@@ -90,6 +102,23 @@ func actionDump(cCtx *cli.Context) error {
 
 	if err := dumper.Dump(secrets); err != nil {
 		return fmt.Errorf("failed to dump secrets: %s", err)
+	}
+
+	return nil
+}
+
+func actionGenerateTF(cCtx *cli.Context) error {
+	svc, err := initService(cCtx.String("target"))
+	if err != nil {
+		return fmt.Errorf("failed to init service for %s", cCtx.String("target"))
+	}
+
+	filter := asd.Filter{
+		Prefix: cCtx.String("prefix"),
+	}
+
+	if err := svc.GenerateTF(cCtx.Context, filter, os.Stdout); err != nil {
+		return fmt.Errorf("failed to generate terraform resource definition(s): %s", err)
 	}
 
 	return nil

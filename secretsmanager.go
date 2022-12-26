@@ -3,7 +3,9 @@ package asd
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"text/template"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -14,7 +16,8 @@ import (
 type SecretsManagerService struct {
 }
 
-func (s SecretsManagerService) Name() string { return "secrets manager service" }
+func (s SecretsManagerService) Name() string   { return "secrets manager service" }
+func (s SecretsManagerService) Target() string { return "secretsmanager" }
 
 func (s SecretsManagerService) RetrieveSecrets(ctx context.Context, filter Filter) ([]Secret, error) {
 	log.Printf("[DEBUG] retrieving from SecretsManager with filter=%+v", filter)
@@ -85,4 +88,46 @@ func (s SecretsManagerService) retrieveSecrets(ctx context.Context, client *secr
 	}
 
 	return ss, l.NextToken, nil
+}
+
+func (s SecretsManagerService) GenerateTF(ctx context.Context, filter Filter, out io.Writer) error {
+	tmpl, err := template.New("tf").Parse(`
+data "sops_file" "secretsmanager_secrets" {
+  source_file = "{{ .EncryptedSecretFileName }}"
+}
+
+locals {
+  secretsmanager_secrets = nonsensitive(
+    distinct([
+      for key in keys(data.sops_file.secretsmanager_secrets.data) : split(".", key)[0]
+    ])
+  )
+}
+
+resource "aws_secretsmanager_secret" "secret" {
+  for_each    = toset(local.secretsmanager_secrets)
+  name        = "{{ .Prefix }}${each.value}"
+  description = nonsensitive(data.sops_file.secretsmanager_secrets.data["${each.value}.description"])
+}
+
+resource "aws_secretsmanager_secret_version" "secret" {
+  for_each      = toset(local.secretsmanager_secrets)
+  secret_id     = aws_secretsmanager_secret.secret[each.value].id
+  secret_string = data.sops_file.secretsmanager_secrets.data["${each.value}.value"]
+}
+`)
+	if err != nil {
+		return fmt.Errorf(`failed to parse template: %s`, err)
+	}
+
+	params := map[string]string{
+		"EncryptedSecretFileName": "secrets.encrypted.yml",
+		"Prefix":                  filter.Prefix,
+	}
+
+	if err := tmpl.Execute(out, params); err != nil {
+		return fmt.Errorf(`failed to execute template: %s`, err)
+	}
+
+	return nil
 }

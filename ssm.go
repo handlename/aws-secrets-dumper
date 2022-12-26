@@ -3,7 +3,9 @@ package asd
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"text/template"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,7 +17,8 @@ import (
 type SSMService struct {
 }
 
-func (s SSMService) Name() string { return "SSM Parameter Store service" }
+func (s SSMService) Name() string   { return "SSM Parameter Store service" }
+func (s SSMService) Target() string { return "ssm" }
 
 func (s SSMService) RetrieveSecrets(ctx context.Context, filter Filter) ([]Secret, error) {
 	log.Printf("[DEBUG] retrieving from SSM Parameter Store with filter=%+v", filter)
@@ -90,4 +93,42 @@ func (s SSMService) retrieveSecrets(ctx context.Context, client *ssm.Client, fil
 	}
 
 	return ss, out.NextToken, nil
+}
+
+func (s SSMService) GenerateTF(ctx context.Context, filter Filter, out io.Writer) error {
+	tmpl, err := template.New("tf").Parse(`
+data "sops_file" "ssm_parameters" {
+  source_file = "{{ .EncryptedSecretFileName }}"
+}
+
+locals {
+  ssm_parameters = nonsensitive(
+    distinct([
+      for key in keys(data.sops_file.ssm_parameters.data) : split(".", key)[0]
+    ])
+  )
+}
+
+resource "aws_ssm_parameter" "parameter" {
+  for_each    = toset(local.ssm_parameters)
+  name        = "{{ .Prefix }}${each.key}"
+  description = each.value.description
+  type        = "SecureString"
+  value       = data.sops_file.ssm_parameters.data["${each.value}.value"]
+}
+`)
+	if err != nil {
+		return fmt.Errorf(`failed to parse template: %s`, err)
+	}
+
+	params := map[string]string{
+		"EncryptedSecretFileName": "secrets.encrypted.yml",
+		"Prefix":                  filter.Prefix,
+	}
+
+	if err := tmpl.Execute(out, params); err != nil {
+		return fmt.Errorf(`failed to execute template: %s`, err)
+	}
+
+	return nil
 }

@@ -1,10 +1,15 @@
 package asd
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 type SecretService interface {
 	Name() string
+	Target() string
 	RetrieveSecrets(ctx context.Context, filter Filter) ([]Secret, error)
+	GenerateTF(ctx context.Context, filter Filter, out io.Writer) error
 }
 
 type Secret struct {
