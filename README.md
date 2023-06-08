@@ -30,7 +30,7 @@ $ aws-secrets-dumper --target secretsmanager -prefix production/ dump > secrets.
 Then, encrypt raw YAML file by sops.
 
 ```console
-$ sops --encrypt --kms $KMS_KEY_ARN secrets.encrypted.yml
+$ sops --encrypt --kms $KMS_KEY_ARN secrets.encrypted.yml > secrets.encrypted.yml
 ```
 
 Generate `.tf` file to manage secrets by Terraform.
