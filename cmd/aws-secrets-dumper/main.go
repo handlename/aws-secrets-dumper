@@ -10,6 +10,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var version string
+
 func init() {
 	logLevel := os.Getenv("ASD_LOG_LEVEL")
 	if logLevel == "" {
@@ -41,6 +43,14 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
+			{
+				Name:  "version",
+				Usage: "show version",
+				Action: func(ctx *cli.Context) error {
+					fmt.Printf("aws-secrets-dumper v%s\n", version)
+					return nil
+				},
+			},
 			{
 				Name:  "dump",
 				Usage: "dump yaml formatted secrets to stdout",
