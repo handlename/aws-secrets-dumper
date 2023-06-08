@@ -1,0 +1,31 @@
+name: release
+on:
+  push:
+    branches:
+      - "!**"
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch: ~
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.20
+      - name: download tools
+        env:
+          GOXZ_VERSION: 0.9.1
+          GHR_VERSION: 0.16.0
+        run: |
+          mkdir -p ~/bin
+          curl -sL https://github.com/Songmu/goxz/releases/download/v${GOXZ_VERSION}/goxz_v${GOXZ_VERSION}_linux_amd64.tar.gz | tar zxvf - && install goxz_v${GOXZ_VERSION}_linux_amd64/goxz ~/bin/
+          curl -sL https://github.com/tcnksm/ghr/releases/download/v${GHR_VERSION}/ghr_v${GHR_VERSION}_linux_amd64.tar.gz | tar zxvf - && install ghr_v${GHR_VERSION}_linux_amd64/ghr ~/bin/
+      - name: release binary
+        run: |
+          PATH=~/bin:$PATH make upload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
