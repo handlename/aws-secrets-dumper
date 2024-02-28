@@ -34,3 +34,8 @@ type OutSecret struct {
 	Value       string `yaml:"value"`
 	Description string `yaml:"description"`
 }
+
+type Import struct {
+	From string
+	To   string
+}

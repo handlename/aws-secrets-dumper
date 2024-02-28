@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/samber/lo"
 )
 
 type SecretsManagerService struct {
@@ -103,6 +104,11 @@ func (s SecretsManagerService) retrieveSecrets(ctx context.Context, client *secr
 }
 
 func (s SecretsManagerService) GenerateTF(ctx context.Context, filter Filter, out io.Writer) error {
+	secrets, err := s.RetrieveSecrets(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve secrets: %s", err)
+	}
+
 	tmpl, err := template.New("tf").Parse(`
 data "sops_file" "secretsmanager_secrets" {
   source_file = "{{ .EncryptedSecretFileName }}"
@@ -127,14 +133,40 @@ resource "aws_secretsmanager_secret_version" "secret" {
   secret_id     = aws_secretsmanager_secret.secret[each.value].id
   secret_string = data.sops_file.secretsmanager_secrets.data["${each.value}.value"]
 }
+{{ range .ImportSecrets }}
+import {
+  from = "{{ .From }}"
+  to   = {{ .To }}
+}
+{{ end }}
+{{ range .ImportSecretVersions }}
+import {
+  from = "{{ .From }}"
+  to   = {{ .To }}
+}
+{{ end }}
 `)
 	if err != nil {
 		return fmt.Errorf(`failed to parse template: %s`, err)
 	}
 
-	params := map[string]string{
+	params := map[string]interface{}{
 		"EncryptedSecretFileName": "secrets.encrypted.yml",
 		"Prefix":                  filter.Prefix,
+
+		"ImportSecrets": lo.Map(secrets, func(s Secret, _ int) Import {
+			return Import{
+				From: s.ARN,
+				To:   fmt.Sprintf(`aws_secretsmanager_secret.secret["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
+			}
+		}),
+
+		"ImportSecretVersions": lo.Map(secrets, func(s Secret, _ int) Import {
+			return Import{
+				From: fmt.Sprintf("%s|%s", s.ARN, s.Version),
+				To:   fmt.Sprintf(`aws_secretsmanager_secret_version.secret["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
+			}
+		}),
 	}
 
 	if err := tmpl.Execute(out, params); err != nil {
