@@ -175,26 +175,3 @@ import {
 
 	return nil
 }
-
-func (s SecretsManagerService) GenerateImports(ctx context.Context, filter Filter, out io.Writer) error {
-	secrets, err := s.RetrieveSecrets(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve secrets: %s", err)
-	}
-
-	for _, secret := range secrets {
-		fmt.Fprintf(
-			out, "terraform import 'aws_secretsmanager_secret.secret[\"%s\"]' %s\n",
-			strings.TrimPrefix(secret.Key, filter.Prefix),
-			secret.ARN,
-		)
-		fmt.Fprintf(
-			out, "terraform import 'aws_secretsmanager_secret_version.secret[\"%s\"]' '%s|%s'\n",
-			strings.TrimPrefix(secret.Key, filter.Prefix),
-			secret.ARN,
-			secret.Version,
-		)
-	}
-
-	return nil
-}

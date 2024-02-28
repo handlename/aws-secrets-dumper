@@ -153,21 +153,3 @@ import {
 
 	return nil
 }
-
-func (s SSMService) GenerateImports(ctx context.Context, filter Filter, out io.Writer) error {
-	secrets, err := s.RetrieveSecrets(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve secrets: %s", err)
-	}
-
-	for _, secret := range secrets {
-		fmt.Fprintf(
-			out, "terraform import 'aws_ssm_parameter.parameter[\"%s\"]' %s%s\n",
-			strings.TrimPrefix(secret.Key, filter.Prefix),
-			filter.Prefix,
-			secret.Key,
-		)
-	}
-
-	return nil
-}
