@@ -69,7 +69,7 @@ $ aws-secrets-dumper --target secretsmanager -prefix production/ generate import
 ```console
 $ aws-secrets-dumper -help
 NAME:
-   aws-secrets-dumper - A new cli application
+   aws-secrets-dumper - Management migration helper for secrets on AWS SSM Parameter Store and AWS Secrets Manager with terraform
 
 USAGE:
    aws-secrets-dumper [global options] command [command options] [arguments...]

@@ -28,6 +28,7 @@ func init() {
 
 func main() {
 	app := &cli.App{
+		Usage: "Management migration helper for secrets on AWS SSM Parameter Store and AWS Secrets Manager with terraform",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "target",
