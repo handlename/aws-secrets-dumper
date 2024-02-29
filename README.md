@@ -5,8 +5,7 @@ aws-secrets-dumper is command line tool to initialize managing secrets on AWS.
 It supports:
 
 - dump secrets in [AWS Sysetms Manager Parameter Store](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/systems-manager-parameter-store.html) or [AWS Secrets Manager](https://docs.aws.amazon.com/ja_jp/secretsmanager/index.html) as YAML formaat
-- generate [Terraform](https://www.terraform.io/) files defines secrets
-- generate `terraform import` commands for each existing secrets
+- generate [Terraform](https://www.terraform.io/) files defines and import secrets
 
 ## Installation
 
@@ -30,13 +29,13 @@ $ aws-secrets-dumper --target secretsmanager -prefix production/ dump > secrets.
 Then, encrypt raw YAML file by sops.
 
 ```console
-$ sops --encrypt --kms $KMS_KEY_ARN secrets.encrypted.yml > secrets.encrypted.yml
+$ sops --encrypt --kms $KMS_KEY_ARN secrets.yml > secrets.encrypted.yml
 ```
 
-Generate `.tf` file to manage secrets by Terraform.
+Generate `.tf` file to manage and import secrets by Terraform.
 
 ```console
-$ aws-secrets-dumper --target ssm -prefix production/ generate tf | tee secrets.tf
+$ aws-secrets-dumper --target ssm -prefix production/ tf | tee secrets.tf
 data "sops_file" "ssm_parameters" {
   source_file = "secrets.encrypted.yml"
 }
@@ -56,13 +55,19 @@ resource "aws_ssm_parameter" "parameter" {
   type        = "SecureString"
   value       = data.sops_file.ssm_parameters.data["${each.value}.value"]
 }
+
+import {
+  from = "production/SOME_SECRET"
+  to   = aws_ssm_parameter.parameter["SOME_SECRET"]
+}
+
+import {
+  from = "production/THAT_ID"
+  to   = aws_ssm_parameter.parameter["THAT_ID"]
+}
 ```
 
-Finally, import existing secrets.
-
-```console
-$ aws-secrets-dumper --target secretsmanager -prefix production/ generate imports | bash -
-```
+Finally, run `terraform plan` and check the result.
 
 ## Options
 
@@ -72,13 +77,13 @@ NAME:
    aws-secrets-dumper - Management migration helper for secrets on AWS SSM Parameter Store and AWS Secrets Manager with terraform
 
 USAGE:
-   aws-secrets-dumper [global options] command [command options] [arguments...]
+   main [global options] command [command options] [arguments...]
 
 COMMANDS:
-   version   show version
-   dump      dump yaml formatted secrets to stdout
-   generate  generate something
-   help, h   Shows a list of commands or help for one command
+   version  show version
+   dump     dump yaml formatted secrets to stdout
+   tf       output terraform resource denifition(s) to stdout
+   help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --target value   'ssm' or 'secretsmanager
