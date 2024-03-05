@@ -57,13 +57,13 @@ resource "aws_ssm_parameter" "parameter" {
 }
 
 import {
-  from = "production/SOME_SECRET"
-  to   = aws_ssm_parameter.parameter["SOME_SECRET"]
+  id = "production/SOME_SECRET"
+  to = aws_ssm_parameter.parameter["SOME_SECRET"]
 }
 
 import {
-  from = "production/THAT_ID"
-  to   = aws_ssm_parameter.parameter["THAT_ID"]
+  id = "production/THAT_ID"
+  to = aws_ssm_parameter.parameter["THAT_ID"]
 }
 ```
 
