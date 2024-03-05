@@ -136,13 +136,13 @@ resource "aws_secretsmanager_secret_version" "secret" {
 {{ range .ImportSecrets }}
 import {
   id = "{{ .id }}"
-  to   = {{ .To }}
+  to = {{ .To }}
 }
 {{ end }}
 {{ range .ImportSecretVersions }}
 import {
   id = "{{ .id }}"
-  to   = {{ .To }}
+  to = {{ .To }}
 }
 {{ end }}
 `)
