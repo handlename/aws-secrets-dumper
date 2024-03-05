@@ -1,6 +1,6 @@
 module github.com/handlename/aws-secrets-dumper
 
-go 1.20
+go 1.22
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.17.3
@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.16.8
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.33.3
 	github.com/hashicorp/logutils v1.0.0
+	github.com/samber/lo v1.39.0
 	github.com/urfave/cli/v2 v2.23.7
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -27,4 +28,5 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
 )

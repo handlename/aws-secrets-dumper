@@ -10,7 +10,6 @@ type SecretService interface {
 	Target() string
 	RetrieveSecrets(ctx context.Context, filter Filter) ([]Secret, error)
 	GenerateTF(ctx context.Context, filter Filter, out io.Writer) error
-	GenerateImports(ctx context.Context, filter Filter, out io.Writer) error
 }
 
 type Secret struct {
@@ -33,4 +32,9 @@ type Tag struct {
 type OutSecret struct {
 	Value       string `yaml:"value"`
 	Description string `yaml:"description"`
+}
+
+type Import struct {
+	Id string
+	To string
 }

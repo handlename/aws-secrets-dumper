@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
+	"github.com/samber/lo"
 )
 
 type SSMService struct {
@@ -98,6 +99,11 @@ func (s SSMService) retrieveSecrets(ctx context.Context, client *ssm.Client, fil
 }
 
 func (s SSMService) GenerateTF(ctx context.Context, filter Filter, out io.Writer) error {
+	secrets, err := s.RetrieveSecrets(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve secrets: %s", err)
+	}
+
 	tmpl, err := template.New("tf").Parse(`
 data "sops_file" "ssm_parameters" {
   source_file = "{{ .EncryptedSecretFileName }}"
@@ -114,40 +120,35 @@ locals {
 resource "aws_ssm_parameter" "parameter" {
   for_each    = toset(local.ssm_parameters)
   name        = "{{ .Prefix }}${each.key}"
-  description = each.value.description
+  description = nonsensitive(data.sops_file.ssm_parameters.data["${each.value}.description"])
   type        = "SecureString"
   value       = data.sops_file.ssm_parameters.data["${each.value}.value"]
 }
+{{ range .ImportSecrets }}
+import {
+  id = "{{ .Id }}"
+  to = {{ .To }}
+}
+{{ end }}
 `)
 	if err != nil {
 		return fmt.Errorf(`failed to parse template: %s`, err)
 	}
 
-	params := map[string]string{
+	params := map[string]interface{}{
 		"EncryptedSecretFileName": "secrets.encrypted.yml",
 		"Prefix":                  filter.Prefix,
+
+		"ImportSecrets": lo.Map(secrets, func(s Secret, _ int) Import {
+			return Import{
+				Id: s.Key,
+				To: fmt.Sprintf(`aws_ssm_parameter.parameter["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
+			}
+		}),
 	}
 
 	if err := tmpl.Execute(out, params); err != nil {
 		return fmt.Errorf(`failed to execute template: %s`, err)
-	}
-
-	return nil
-}
-
-func (s SSMService) GenerateImports(ctx context.Context, filter Filter, out io.Writer) error {
-	secrets, err := s.RetrieveSecrets(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve secrets: %s", err)
-	}
-
-	for _, secret := range secrets {
-		fmt.Fprintf(
-			out, "terraform import 'aws_ssm_parameter.parameter[\"%s\"]' %s%s\n",
-			strings.TrimPrefix(secret.Key, filter.Prefix),
-			filter.Prefix,
-			secret.Key,
-		)
 	}
 
 	return nil
