@@ -120,14 +120,14 @@ locals {
 resource "aws_ssm_parameter" "parameter" {
   for_each    = toset(local.ssm_parameters)
   name        = "{{ .Prefix }}${each.key}"
-  description = each.value.description
+  description = nonsensitive(data.sops_file.ssm_parameters.data["${each.value}.description"])
   type        = "SecureString"
   value       = data.sops_file.ssm_parameters.data["${each.value}.value"]
 }
 {{ range .ImportSecrets }}
 import {
-  from = "{{ .From }}"
-  to   = {{ .To }}
+  id = "{{ .Id }}"
+  to = {{ .To }}
 }
 {{ end }}
 `)
@@ -141,8 +141,8 @@ import {
 
 		"ImportSecrets": lo.Map(secrets, func(s Secret, _ int) Import {
 			return Import{
-				From: s.Key,
-				To:   fmt.Sprintf(`aws_ssm_parameter.parameter["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
+				Id: s.Key,
+				To: fmt.Sprintf(`aws_ssm_parameter.parameter["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
 			}
 		}),
 	}

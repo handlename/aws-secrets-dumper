@@ -35,6 +35,6 @@ type OutSecret struct {
 }
 
 type Import struct {
-	From string
-	To   string
+	Id string
+	To string
 }

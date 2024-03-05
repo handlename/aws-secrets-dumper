@@ -135,13 +135,13 @@ resource "aws_secretsmanager_secret_version" "secret" {
 }
 {{ range .ImportSecrets }}
 import {
-  from = "{{ .From }}"
+  id = "{{ .id }}"
   to   = {{ .To }}
 }
 {{ end }}
 {{ range .ImportSecretVersions }}
 import {
-  from = "{{ .From }}"
+  id = "{{ .id }}"
   to   = {{ .To }}
 }
 {{ end }}
@@ -156,15 +156,15 @@ import {
 
 		"ImportSecrets": lo.Map(secrets, func(s Secret, _ int) Import {
 			return Import{
-				From: s.ARN,
-				To:   fmt.Sprintf(`aws_secretsmanager_secret.secret["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
+				Id: s.ARN,
+				To: fmt.Sprintf(`aws_secretsmanager_secret.secret["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
 			}
 		}),
 
 		"ImportSecretVersions": lo.Map(secrets, func(s Secret, _ int) Import {
 			return Import{
-				From: fmt.Sprintf("%s|%s", s.ARN, s.Version),
-				To:   fmt.Sprintf(`aws_secretsmanager_secret_version.secret["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
+				Id: fmt.Sprintf("%s|%s", s.ARN, s.Version),
+				To: fmt.Sprintf(`aws_secretsmanager_secret_version.secret["%s"]`, strings.TrimPrefix(s.Key, filter.Prefix)),
 			}
 		}),
 	}
