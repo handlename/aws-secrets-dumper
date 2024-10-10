@@ -51,7 +51,7 @@ locals {
 resource "aws_ssm_parameter" "parameter" {
   for_each    = toset(local.ssm_parameters)
   name        = "production/${each.key}"
-  description = each.value.description
+  description = nonsensitive(data.sops_file.ssm_parameters.data["${each.value}.description"])
   type        = "SecureString"
   value       = data.sops_file.ssm_parameters.data["${each.value}.value"]
 }
